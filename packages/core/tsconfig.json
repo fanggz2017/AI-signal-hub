@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+
+  "compilerOptions": {
+    "declaration": true,
+    "noEmit": true,
+    "types": ["bun"]
+  },
+
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}

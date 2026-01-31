@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    "strict": true,
+
+    "resolveJsonModule": true,
+    "allowJs": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["packages/*/src"],
+      "@app/core": ["./packages/core/src/index.ts"],
+      "@app/core/*": ["./packages/core/src/*"]
+    },
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["packages/*/src/**/*"]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "my-blog-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "bun run --filter @app/web dev",
+    "dev:api": "bun run --filter @app/api dev",
+    "dev:all": "bun run --filter '*' dev",
+    "db:up": "bun run --filter @app/api db:up",
+    "db:down": "bun run --filter @app/api db:down",
+    "db:logs": "bun run --filter @app/api db:logs",
+    "db:reset": "bun run --filter @app/api db:reset",
+    "prepare": "husky",
+    "test": "bun run --filter '*' test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.0",
+    "@commitlint/config-conventional": "^20.4.0",
+    "husky": "^9.1.7"
+  }
+}
