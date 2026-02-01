@@ -19,7 +19,7 @@ export function AppSidebar() {
   const location = useLocation();
   // 假设从 store 获取当前用户角色
   // const { user } = useAuthStore();
-  const menuItems = getMenuItems("admin");
+  const menuItems = getMenuItems();
 
   return (
     <Sidebar collapsible="icon">

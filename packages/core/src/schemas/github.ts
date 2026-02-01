@@ -21,4 +21,9 @@ export const GithubRepoSchema = z.object({
   }),
 });
 
+export const QuerySchema = z.object({
+  type: z.enum(["trending", "agent", "ai"]).default("trending"),
+});
+
 export type GithubRepo = z.infer<typeof GithubRepoSchema>;
+export type RepoListType = z.infer<typeof QuerySchema>["type"];
