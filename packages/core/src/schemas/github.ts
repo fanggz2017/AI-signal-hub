@@ -5,10 +5,16 @@ export const GithubRepoSchema = z.object({
   name: z.string(),
   full_name: z.string(),
   html_url: z.string(),
-  description: z.string().nullable(),
+  description: z
+    .string()
+    .nullable()
+    .transform((val) => val ?? ""),
   stargazers_count: z.number(),
-  forks_count: z.number().optional(),
-  language: z.string().nullable(),
+  forks_count: z.number().optional().default(0),
+  language: z
+    .string()
+    .nullable()
+    .transform((val) => val ?? "Unknown"),
   owner: z.object({
     login: z.string(),
     avatar_url: z.string(),

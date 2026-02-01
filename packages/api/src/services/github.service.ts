@@ -1,11 +1,18 @@
 import redis from "@/db/redis";
-import { GithubRepo } from "@app/core";
+import { GithubRepoSchema, type GithubRepo } from "@app/core";
+import { HeadersInit } from "bun";
+import { z } from "zod";
 
 const CACHE_KEY = "github:trending";
+const CACHE_TTL = 60 * 60 * 25;
+
+// 定义 API 响应结构，复用 Core 的 Schema
+const GitHubSearchResponseSchema = z.object({
+  items: z.array(GithubRepoSchema),
+});
 
 /**
- * 获取 GitHub 热门趋势 (Search API)
- * 策略: 搜索过去 7 天创建的 star 数最多的仓库
+ * 1. 获取 GitHub 数据
  */
 export const fetchTrending = async (): Promise<GithubRepo[]> => {
   try {
@@ -13,68 +20,84 @@ export const fetchTrending = async (): Promise<GithubRepo[]> => {
     date.setDate(date.getDate() - 7);
     const dateString = date.toISOString().split("T")[0];
 
+    const token = process.env.GITHUB_ACCESS_TOKEN;
+    const headers: HeadersInit = {
+      "User-Agent": "My-Blog-App",
+      Accept: "application/vnd.github.v3+json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     const response = await fetch(
       `https://api.github.com/search/repositories?q=created:>${dateString}&sort=stars&order=desc&per_page=10`,
-      {
-        headers: {
-          "User-Agent": "My-Blog-App",
-          Accept: "application/vnd.github.v3+json",
-        },
-      },
+      { headers },
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`);
+      const errText = await response.text();
+      throw new Error(`GitHub API Error [${response.status}]: ${errText}`);
     }
 
-    const data = (await response.json()) as { items: any[] };
-    return data.items.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      full_name: item.full_name,
-      html_url: item.html_url,
-      description: item.description,
-      stargazers_count: item.stargazers_count,
-      forks_count: item.forks_count,
-      language: item.language,
-      owner: {
-        login: item.owner.login,
-        avatar_url: item.owner.avatar_url,
-      },
-    }));
+    const rawJson = await response.json();
+    const parsedData = GitHubSearchResponseSchema.parse(rawJson);
+
+    return parsedData.items;
   } catch (error) {
-    console.error("Failed to fetch trending repos:", error);
-    return [];
+    console.error("❌ [GitHub Service] Fetch failed:", error);
+    throw error;
   }
 };
 
 /**
- * 缓存数据到 Redis
+ * 2. 写入缓存
  */
 export const cacheTrending = async (repos: GithubRepo[]) => {
   if (repos.length === 0) return;
-  await redis.set(CACHE_KEY, JSON.stringify(repos), "EX", 60 * 60 * 25); // 缓存 25 小时，防止cron失败时空窗
+  try {
+    await redis.set(CACHE_KEY, JSON.stringify(repos), "EX", CACHE_TTL);
+  } catch (error) {
+    console.error("❌ [GitHub Service] Redis write failed:", error);
+  }
 };
 
 /**
- * 从 Redis 获取缓存数据
+ * 3. 智能获取 (Cache-Aside + Fallback)
+ * 供 API 层调用
  */
-export const getCachedTrending = async (): Promise<GithubRepo[]> => {
-  const data = await redis.get(CACHE_KEY);
-  if (!data) return [];
-  return JSON.parse(data);
+export const getTrendingData = async (): Promise<GithubRepo[]> => {
+  try {
+    const cached = await redis.get(CACHE_KEY);
+    if (cached) {
+      return JSON.parse(cached) as GithubRepo[];
+    }
+  } catch (e) {
+    console.error("⚠️ [GitHub Service] Cache read error, ignoring...", e);
+  }
+  console.log("🔄 [GitHub Service] Cache miss. Fetching live data...");
+  try {
+    const freshData = await fetchTrending();
+    cacheTrending(freshData).catch((err) =>
+      console.error("Async cache update failed", err),
+    );
+    return freshData;
+  } catch (error) {
+    console.error("🔥 [GitHub Service] All data sources failed.");
+    return []; // 兜底返回空数组
+  }
 };
 
 /**
- * 主任务：拉取并缓存 (供 Cron 调用)
+ * 4. 定时任务专用
+ * 供 Cron 调用
  */
 export const updateTrendingCache = async () => {
-  console.log("[Cron] Starting GitHub trending update...");
-  const repos = await fetchTrending();
-  if (repos.length > 0) {
-    await cacheTrending(repos);
-    console.log(`[Cron] Successfully updated ${repos.length} repos.`);
-  } else {
-    console.log("[Cron] No data fetched.");
+  console.log("⏰ [Cron] Starting GitHub trending update...");
+  try {
+    const repos = await fetchTrending();
+    if (repos.length > 0) {
+      await cacheTrending(repos);
+      console.log(`✅ [Cron] Success: Cached ${repos.length} repos.`);
+    }
+  } catch (error) {
+    console.error("❌ [Cron] Job failed:", error);
   }
 };
