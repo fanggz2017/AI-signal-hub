@@ -6,13 +6,21 @@ import { toast } from "sonner";
 import type { LoginDTO } from "@app/core";
 
 export const useLogin = () => {
-  return useMutation<any, AxiosError<ApiErrorResponse>, LoginDTO>({
+  return useMutation<unknown, AxiosError<ApiErrorResponse>, LoginDTO>({
     mutationFn: (data: LoginDTO) => loginFn(data),
 
-    onSuccess: (res) => {
+    onSuccess: (res: unknown) => {
+      const response = res as {
+        data: { accessToken: string; refreshToken: string };
+      };
       toast.success("登录成功");
-      localStorage.setItem("token", res.data.accessToken);
-      localStorage.setItem("refreshToken", res.data.refreshToken);
+      localStorage.setItem("token", response.data.accessToken);
+      localStorage.setItem("refreshToken", response.data.refreshToken);
+    },
+
+    onError: (error) => {
+      const msg = error.response?.data?.message || "登录失败";
+      toast.error(msg);
     },
   });
 };
