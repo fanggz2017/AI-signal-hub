@@ -6,7 +6,6 @@ import { z } from "zod";
 const CACHE_KEY = "github:trending";
 const CACHE_TTL = 60 * 60 * 25;
 
-// 定义 API 响应结构，复用 Core 的 Schema
 const GitHubSearchResponseSchema = z.object({
   items: z.array(GithubRepoSchema),
 });

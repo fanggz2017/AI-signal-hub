@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import HeaderNav from "./header-nav";
+import { AppSidebar } from "@/layouts/components/app-sidebar";
+import HeaderNav from "./components/header-nav";
 
 const MainLayout = () => {
   return (

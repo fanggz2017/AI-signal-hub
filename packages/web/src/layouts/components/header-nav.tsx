@@ -14,7 +14,7 @@ const HeaderNav = () => {
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Command className="size-4" />
           </div>
-          <span className="hidden md:inline-block">我的博客系统</span>
+          <span className="hidden md:inline-block">AI聚合平台</span>
         </div>
       </div>
 
