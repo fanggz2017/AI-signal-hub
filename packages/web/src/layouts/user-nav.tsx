@@ -52,7 +52,13 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/login")}>
+        <DropdownMenuItem
+          onClick={() => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            navigate("/login");
+          }}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           <span>退出登录</span>
         </DropdownMenuItem>

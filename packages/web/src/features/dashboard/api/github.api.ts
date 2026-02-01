@@ -1,6 +1,9 @@
 import request from "@/lib/request";
-import { GithubRepo } from "@app/core";
+import type { GithubRepo } from "@app/core";
 
 export const getGithubTrending = async () => {
-  return request.get<GithubRepo[]>("/github/trending");
+  const res = (await request.get("/github/trending")) as {
+    data: GithubRepo[];
+  };
+  return res.data;
 };

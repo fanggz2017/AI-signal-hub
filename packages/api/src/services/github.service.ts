@@ -18,16 +18,16 @@ export const fetchTrending = async (): Promise<GithubRepo[]> => {
       {
         headers: {
           "User-Agent": "My-Blog-App",
-          "Accept": "application/vnd.github.v3+json"
+          Accept: "application/vnd.github.v3+json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { items: any[] };
     return data.items.map((item: any) => ({
       id: item.id,
       name: item.name,
@@ -35,6 +35,7 @@ export const fetchTrending = async (): Promise<GithubRepo[]> => {
       html_url: item.html_url,
       description: item.description,
       stargazers_count: item.stargazers_count,
+      forks_count: item.forks_count,
       language: item.language,
       owner: {
         login: item.owner.login,

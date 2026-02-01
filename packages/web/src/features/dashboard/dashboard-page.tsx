@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Star, GitFork, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, GitFork } from "lucide-react";
 
 const DashboardPage = () => {
   const {
@@ -91,6 +91,12 @@ const DashboardPage = () => {
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       {repo.stargazers_count}
                     </div>
+                    {repo.forks_count !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <GitFork className="h-3 w-3 text-muted-foreground" />
+                        {repo.forks_count}
+                      </div>
+                    )}
                     {repo.language && (
                       <div className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-blue-500" />

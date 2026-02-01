@@ -5,6 +5,7 @@ import auth from "./routes/auth.route";
 import github from "./routes/github.route";
 import { setupCronJobs } from "./jobs/cron";
 import { HTTPException } from "hono/http-exception";
+import { authMiddleware } from "./middlewares/auth";
 
 const app = new Hono();
 
@@ -49,7 +50,11 @@ app.onError((err, c) => {
 
 const api = new Hono().basePath("/api");
 api.route("/auth", auth);
+
+// 受保护的路由
+api.use("/github/*", authMiddleware);
 api.route("/github", github);
+
 app.route("/", api);
 
 // --- 健康检查 ---

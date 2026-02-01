@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "sonner";
+import router from "@/router";
 
 const request = axios.create({
   baseURL: "/api",
@@ -8,10 +9,15 @@ const request = axios.create({
 
 // 防止循环刷新标记
 let isRefreshing = false;
-// 存储因 Token 过期而挂起的请求队列
-let failedQueue: any[] = [];
+interface FailedQueueItem {
+  resolve: (value: string | null) => void;
+  reject: (reason?: unknown) => void;
+}
 
-const processQueue = (error: any, token: string | null = null) => {
+// 存储因 Token 过期而挂起的请求队列
+let failedQueue: FailedQueueItem[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -51,8 +57,9 @@ request.interceptors.response.use(
         if (!isLoginRequest) {
           localStorage.removeItem("token");
           localStorage.removeItem("refreshToken");
-          if (!window.location.pathname.includes("/auth/login")) {
-            window.location.href = "/auth/login";
+          if (!window.location.pathname.includes("/login")) {
+            toast.error("会话已过期，请重新登录");
+            router.navigate("/login");
           }
         }
         return Promise.reject(error);
@@ -78,33 +85,36 @@ request.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) {
-            throw new Error("No refresh token");
+          throw new Error("No refresh token");
         }
-        
+
         // 使用独立的 axios 实例或直接 fetch，避免死循环拦截
         // 这里为了简单复用 baseURL，我们构建一个临时请求
         const response = await axios.post("/api/auth/refresh", {
-            refreshToken
+          refreshToken,
         });
 
         const { accessToken } = response.data.data; // 根据 ResultUtil 结构: { code, message, data: { accessToken } }
 
         localStorage.setItem("token", accessToken);
-        
-        request.defaults.headers.common["Authorization"] = "Bearer " + accessToken;
-        originalRequest.headers["Authorization"] = "Bearer " + accessToken;
+
+        request.defaults.headers.common["Authorization"] =
+          "Bearer " + accessToken;
+        if (originalRequest.headers) {
+          originalRequest.headers["Authorization"] = "Bearer " + accessToken;
+        }
 
         processQueue(null, accessToken);
-        
+
         // 重发原始请求
         return request(originalRequest);
-
       } catch (err) {
         processQueue(err, null);
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
-        if (!window.location.pathname.includes("/auth/login")) {
-             window.location.href = "/auth/login";
+        if (!window.location.pathname.includes("/login")) {
+          toast.error("会话已过期，请重新登录");
+          router.navigate("/login");
         }
         return Promise.reject(err);
       } finally {

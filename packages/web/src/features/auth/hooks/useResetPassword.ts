@@ -6,7 +6,7 @@ import { resetPasswordFn } from "../api/auth.api";
 import type { ResetPasswordDTO } from "@app/core";
 
 export const useResetPassword = () => {
-  return useMutation<any, AxiosError<ApiErrorResponse>, ResetPasswordDTO>({
+  return useMutation<unknown, AxiosError<ApiErrorResponse>, ResetPasswordDTO>({
     mutationFn: (data: ResetPasswordDTO) => resetPasswordFn(data),
     onSuccess: () => {
       toast.success("密码重置成功");

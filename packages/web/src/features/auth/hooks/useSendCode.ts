@@ -6,10 +6,11 @@ import type { ApiErrorResponse } from "@/types/request";
 import { toast } from "sonner";
 
 export const useSendCode = () => {
-  return useMutation<any, AxiosError<ApiErrorResponse>, SendCodeDTO>({
+  return useMutation<unknown, AxiosError<ApiErrorResponse>, SendCodeDTO>({
     mutationFn: (data: SendCodeDTO) => sendCodeFn(data, { isSilent: true }),
-    onSuccess: (res) => {
-      toast.success(res?.data?.message || "验证码已发送，请查收邮件");
+    onSuccess: (res: unknown) => {
+      const response = res as { data?: { message?: string } };
+      toast.success(response?.data?.message || "验证码已发送，请查收邮件");
     },
     onError: (error) => {
       if (!error.response?.data?.field) {

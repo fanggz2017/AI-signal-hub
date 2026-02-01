@@ -6,7 +6,7 @@ import type { AxiosError } from "axios";
 import type { ApiErrorResponse } from "@/types/request";
 
 export const useRegister = () => {
-  return useMutation<any, AxiosError<ApiErrorResponse>, RegisterDTO>({
+  return useMutation<unknown, AxiosError<ApiErrorResponse>, RegisterDTO>({
     mutationFn: (data: RegisterDTO) => registerFn(data, { isSilent: true }),
 
     onSuccess: () => {
