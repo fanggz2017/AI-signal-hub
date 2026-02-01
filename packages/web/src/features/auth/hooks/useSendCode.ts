@@ -1,22 +1,26 @@
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
 import type { SendCodeDTO } from "@app/core";
 import { sendCodeFn } from "../api/auth.api";
-import type { AxiosError } from "axios";
-import type { ApiErrorResponse } from "@/types/request";
-import { toast } from "sonner";
+import type { ApiErrorResponse, ApiResponse } from "@/types/request";
 
 export const useSendCode = () => {
-  return useMutation<unknown, AxiosError<ApiErrorResponse>, SendCodeDTO>({
-    mutationFn: (data: SendCodeDTO) => sendCodeFn(data, { isSilent: true }),
-    onSuccess: (res: unknown) => {
-      const response = res as { data?: { message?: string } };
-      toast.success(response?.data?.message || "验证码已发送，请查收邮件");
+  return useMutation<
+    ApiResponse<null>,
+    AxiosError<ApiErrorResponse>,
+    SendCodeDTO
+  >({
+    mutationFn: (data) => sendCodeFn(data, { isSilent: true }),
+
+    onSuccess: (res) => {
+      toast.success(res.message || "验证码已发送，请查收邮件");
     },
+
     onError: (error) => {
-      if (!error.response?.data?.field) {
-        toast.error(
-          error.response?.data?.message || "发送验证码失败，请稍后重试",
-        );
+      const errData = error.response?.data;
+      if (!errData?.field) {
+        toast.error(errData?.message || "发送验证码失败，请稍后重试");
       }
     },
   });

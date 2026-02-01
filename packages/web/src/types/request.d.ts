@@ -6,6 +6,12 @@ export interface ApiOptions {
   isSilent?: boolean;
 }
 
+export interface ApiResponse<T = any> {
+  code: number;
+  message: string;
+  data: T;
+}
+
 export interface ApiErrorResponse {
   message: string;
   code?: number;

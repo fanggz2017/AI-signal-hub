@@ -13,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { LoginSchema } from "@app/core";
 import { useLogin } from "../hooks/useLogin";
+import { toast } from "sonner";
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -41,6 +43,10 @@ const LoginForm = () => {
         setTimeout(() => {
           navigate("/dashboard");
         }, 1000);
+      },
+      onError: (error) => {
+        const msg = error.response?.data?.message || "登录失败";
+        toast.error(msg);
       },
     });
   }

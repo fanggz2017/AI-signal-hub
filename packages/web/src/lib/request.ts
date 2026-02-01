@@ -1,23 +1,43 @@
-import axios from "axios";
+import axios, {
+  type AxiosInstance,
+  type AxiosRequestConfig,
+  type AxiosError,
+  type InternalAxiosRequestConfig,
+  type AxiosResponse,
+} from "axios";
 import { toast } from "sonner";
 import router from "@/router";
 
-const request = axios.create({
+interface Result<T = any> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+interface CustomRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+  skipErrorHandler?: boolean;
+}
+
+const service: AxiosInstance = axios.create({
   baseURL: "/api",
   timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // 防止循环刷新标记
 let isRefreshing = false;
-interface FailedQueueItem {
-  resolve: (value: string | null) => void;
-  reject: (reason?: unknown) => void;
-}
 
-// 存储因 Token 过期而挂起的请求队列
+// 失败队列
+interface FailedQueueItem {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: any) => void;
+}
 let failedQueue: FailedQueueItem[] = [];
 
-const processQueue = (error: unknown, token: string | null = null) => {
+const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -25,58 +45,68 @@ const processQueue = (error: unknown, token: string | null = null) => {
       prom.resolve(token);
     }
   });
-
   failedQueue = [];
 };
 
-request.interceptors.request.use(
-  (config) => {
+// 辅助函数：统一登出逻辑
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+
+  if (!window.location.pathname.includes("/login")) {
+    toast.error("会话已过期，请重新登录");
+    if (router && router.navigate) {
+      router.navigate("/login");
+    } else {
+      window.location.href = "/login";
+    }
+  }
+};
+
+// --- 请求拦截器 ---
+service.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token && config.headers) {
+      config.headers.set("Authorization", `Bearer ${token}`);
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-request.interceptors.response.use(
-  (response) => {
+// --- 响应拦截器 ---
+service.interceptors.response.use(
+  (response: AxiosResponse) => {
     return response.data;
   },
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError<Result>) => {
+    const originalRequest = error.config as CustomRequestConfig;
 
-    // 处理 401 未授权情况
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const isLoginRequest = originalRequest.url?.includes("/auth/login");
-      const isRefreshRequest = originalRequest.url?.includes("/auth/refresh");
-
-      // 如果是登录或刷新接口本身的 401，说明凭证完全无效，直接放弃
-      if (isLoginRequest || isRefreshRequest) {
-        if (!isLoginRequest) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          if (!window.location.pathname.includes("/login")) {
-            toast.error("会话已过期，请重新登录");
-            router.navigate("/login");
-          }
-        }
+      if (
+        originalRequest.url?.includes("/auth/login") ||
+        originalRequest.url?.includes("/auth/refresh")
+      ) {
+        handleLogout();
         return Promise.reject(error);
       }
 
-      // 如果正在刷新中，将当前请求加入队列等待
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers["Authorization"] = "Bearer " + token;
-            return request(originalRequest);
+            if (originalRequest.headers) {
+              originalRequest.headers.set("Authorization", `Bearer ${token}`);
+            }
+            return service({ ...originalRequest });
           })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
@@ -88,46 +118,70 @@ request.interceptors.response.use(
           throw new Error("No refresh token");
         }
 
-        // 使用独立的 axios 实例或直接 fetch，避免死循环拦截
-        // 这里为了简单复用 baseURL，我们构建一个临时请求
-        const response = await axios.post("/api/auth/refresh", {
-          refreshToken,
-        });
+        const { data } = await axios.post<Result<{ accessToken: string }>>(
+          `${service.defaults.baseURL}/auth/refresh`,
+          { refreshToken },
+        );
 
-        const { accessToken } = response.data.data; // 根据 ResultUtil 结构: { code, message, data: { accessToken } }
+        const newAccessToken = data.data.accessToken;
 
-        localStorage.setItem("token", accessToken);
+        localStorage.setItem("token", newAccessToken);
 
-        request.defaults.headers.common["Authorization"] =
-          "Bearer " + accessToken;
+        processQueue(null, newAccessToken);
         if (originalRequest.headers) {
-          originalRequest.headers["Authorization"] = "Bearer " + accessToken;
+          originalRequest.headers.set(
+            "Authorization",
+            `Bearer ${newAccessToken}`,
+          );
         }
-
-        processQueue(null, accessToken);
-
-        // 重发原始请求
-        return request(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
-        if (!window.location.pathname.includes("/login")) {
-          toast.error("会话已过期，请重新登录");
-          router.navigate("/login");
-        }
-        return Promise.reject(err);
+        return service({ ...originalRequest });
+      } catch (refreshErr) {
+        processQueue(refreshErr as Error, null);
+        handleLogout();
+        return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
       }
     }
 
-    if (!error.config?.skipErrorHandler) {
-      const msg = error.response?.data?.message || "请求失败";
+    if (!originalRequest.skipErrorHandler) {
+      const msg = error.response?.data?.message || error.message || "请求失败";
       toast.error(msg);
     }
+
     return Promise.reject(error);
   },
 );
+
+const request = <T = any>(config: AxiosRequestConfig): Promise<Result<T>> => {
+  return service(config) as any;
+};
+
+request.get = <T = any>(
+  url: string,
+  config?: AxiosRequestConfig,
+): Promise<Result<T>> => {
+  return service.get(url, config) as any;
+};
+request.post = <T = any>(
+  url: string,
+  data?: any,
+  config?: AxiosRequestConfig,
+): Promise<Result<T>> => {
+  return service.post(url, data, config) as any;
+};
+request.put = <T = any>(
+  url: string,
+  data?: any,
+  config?: AxiosRequestConfig,
+): Promise<Result<T>> => {
+  return service.put(url, data, config) as any;
+};
+request.delete = <T = any>(
+  url: string,
+  config?: AxiosRequestConfig,
+): Promise<Result<T>> => {
+  return service.delete(url, config) as any;
+};
 
 export default request;

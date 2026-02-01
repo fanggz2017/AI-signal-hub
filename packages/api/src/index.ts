@@ -1,29 +1,31 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
+import { setupCronJobs } from "./jobs/cron";
+
 import auth from "./routes/auth.route";
 import github from "./routes/github.route";
-import { setupCronJobs } from "./jobs/cron";
-import { HTTPException } from "hono/http-exception";
 import { authMiddleware } from "./middlewares/auth";
+import type { AppEnv } from "./types/auth";
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 
-// 启动定时任务
 setupCronJobs();
 
-// --- 中间件区域 ---
-
+// --- 中间件 ---
 app.use("*", logger());
 
 app.use(
   "*",
   cors({
-    origin: "*",
+    origin: process.env.CORS_ORIGIN || "*",
     allowMethods: ["POST", "GET", "OPTIONS", "PUT", "DELETE"],
+    credentials: true,
   }),
 );
 
+// --- 错误处理 ---
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
     const cause = err.cause as { field?: string } | undefined;
@@ -38,6 +40,8 @@ app.onError((err, c) => {
     );
   }
 
+  console.error("Unhandled Error:", err);
+
   return c.json(
     {
       code: 500,
@@ -48,16 +52,18 @@ app.onError((err, c) => {
   );
 });
 
-const api = new Hono().basePath("/api");
+const api = new Hono<AppEnv>().basePath("/api");
+
 api.route("/auth", auth);
 
-// 受保护的路由
-api.use("/github/*", authMiddleware);
-api.route("/github", github);
+const protectedRoutes = new Hono<AppEnv>()
+  .use(authMiddleware)
+  .route("/github", github);
+
+api.route("/", protectedRoutes);
 
 app.route("/", api);
 
-// --- 健康检查 ---
-app.get("/", (c) => c.text("Hello Hono! Server is ready."));
+app.get("/", (c) => c.text("System Active."));
 
 export default app;

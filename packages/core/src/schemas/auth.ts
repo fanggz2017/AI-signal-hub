@@ -7,6 +7,14 @@ export const VerificationScene = z.enum([
   "BIND_EMAIL", // 绑定邮箱 (未来可能用到)
 ]);
 
+export const JWTPayloadSchema = z.object({
+  id: z.number(),
+  email: z.email(), // 用户邮箱
+  // role: z.enum(["admin", "user"]).optional().default("user"),
+  exp: z.number(),
+  iat: z.number().optional(),
+});
+
 export const RegisterSchema = z.object({
   username: z.string().min(3, { message: "用户名至少需要3个字符" }).max(30),
   password: z.string().min(6, { message: "密码至少需要6位" }),
@@ -27,7 +35,7 @@ export const ResetPasswordSchema = z.object({
 
 export const SendCodeSchema = z.object({
   scene: VerificationScene,
-  email: z.email("邮箱格式不正确").optional(),
+  email: z.email("邮箱格式不正确"),
 });
 
 export type RegisterDTO = z.infer<typeof RegisterSchema>;
@@ -36,3 +44,5 @@ export type ResetPasswordDTO = z.infer<typeof ResetPasswordSchema>;
 
 export type VerificationSceneType = z.infer<typeof VerificationScene>;
 export type SendCodeDTO = z.infer<typeof SendCodeSchema>;
+
+export type JWTPayload = z.infer<typeof JWTPayloadSchema>;
