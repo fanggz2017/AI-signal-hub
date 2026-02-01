@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { GithubRepoSchema, QuerySchema } from "./github";
+import { GithubRepoSchema, QuerySchema } from "../schemas/github";
 
 describe("Github Schemas", () => {
   describe("GithubRepoSchema", () => {
@@ -42,7 +42,7 @@ describe("Github Schemas", () => {
     });
 
     it("should use default forks_count if missing", () => {
-       const repoWithoutForks = {
+      const repoWithoutForks = {
         id: 123,
         name: "test-repo",
         full_name: "user/test-repo",
@@ -68,13 +68,11 @@ describe("Github Schemas", () => {
     });
 
     it("should default to trending if type is missing", () => {
-        // QuerySchema expects an object, if type is missing/undefined in input object
-        // but since we are parsing { type: undefined } or {}
-        const result = QuerySchema.safeParse({});
-        expect(result.success).toBe(true);
-        if(result.success) {
-            expect(result.data.type).toBe("trending");
-        }
+      const result = QuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("trending");
+      }
     });
 
     it("should fail on invalid types", () => {

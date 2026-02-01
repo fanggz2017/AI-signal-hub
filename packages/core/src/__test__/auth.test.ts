@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { LoginSchema, RegisterSchema, ResetPasswordSchema } from "./auth";
+import {
+  LoginSchema,
+  RegisterSchema,
+  ResetPasswordSchema,
+  SendCodeSchema,
+} from "../schemas/auth";
 
 describe("Auth Schemas", () => {
   describe("LoginSchema", () => {

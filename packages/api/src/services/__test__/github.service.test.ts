@@ -1,5 +1,10 @@
 import { describe, expect, it, mock, beforeEach, spyOn } from "bun:test";
-import { fetchGithubRepos, cacheRepos, getRepoList, updateAllRepoCaches } from "./github.service";
+import {
+  fetchGithubRepos,
+  cacheRepos,
+  getRepoList,
+  updateAllRepoCaches,
+} from "../github.service";
 import redis from "@/db/redis";
 
 // Mock redis
@@ -36,7 +41,7 @@ describe("GithubService", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ items: [mockRepo] }),
-        } as Response)
+        } as unknown as Response),
       );
 
       const repos = await fetchGithubRepos("trending");
@@ -51,10 +56,12 @@ describe("GithubService", () => {
           ok: false,
           status: 500,
           text: () => Promise.resolve("Internal Server Error"),
-        } as Response)
+        } as unknown as Response),
       );
 
-      expect(fetchGithubRepos("trending")).rejects.toThrow("GitHub API Error [500]");
+      expect(fetchGithubRepos("trending")).rejects.toThrow(
+        "GitHub API Error [500]",
+      );
     });
   });
 
@@ -62,7 +69,12 @@ describe("GithubService", () => {
     it("should cache repos in redis", async () => {
       await cacheRepos("trending", [mockRepo]);
       expect(redis.set).toHaveBeenCalled();
-      expect(redis.set).toHaveBeenCalledWith("github:trending", expect.any(String), "EX", expect.any(Number));
+      expect(redis.set).toHaveBeenCalledWith(
+        "github:trending",
+        expect.any(String),
+        "EX",
+        expect.any(Number),
+      );
     });
 
     it("should not cache empty list", async () => {
@@ -78,7 +90,7 @@ describe("GithubService", () => {
       expect(repos).toHaveLength(1);
       expect(redis.get).toHaveBeenCalledWith("github:trending");
       // Should not fetch if cache hit
-      // Note: In strict unit test we might want to ensure fetchGithubRepos is not called, 
+      // Note: In strict unit test we might want to ensure fetchGithubRepos is not called,
       // but here we are integration testing the service logic mostly.
     });
 
@@ -88,7 +100,7 @@ describe("GithubService", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ items: [mockRepo] }),
-        } as Response)
+        } as Response),
       );
 
       const repos = await getRepoList("trending");
@@ -96,19 +108,19 @@ describe("GithubService", () => {
       expect(redis.set).toHaveBeenCalled(); // Should cache after fetch
     });
   });
-  
-    describe("updateAllRepoCaches", () => {
+
+  describe("updateAllRepoCaches", () => {
     it("should update all types", async () => {
       global.fetch = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ items: [mockRepo] }),
-        } as Response)
+        } as unknown as Response),
       );
-      
+
       await updateAllRepoCaches();
       // 3 types: trending, agent, ai
-      expect(fetch).toHaveBeenCalledTimes(3); 
+      expect(fetch).toHaveBeenCalledTimes(3);
       expect(redis.set).toHaveBeenCalledTimes(3);
     });
   });

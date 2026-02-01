@@ -7,7 +7,7 @@ import {
   beforeAll,
   spyOn,
 } from "bun:test";
-import { login, register } from "./auth.service";
+import { login, register } from "@/services/auth.service";
 import { prisma } from "@/db/prisma"; // 确保路径别名与你项目一致
 import redis from "@/db/redis";
 import { hashPassword, verifyPassword } from "@/utils/password";
